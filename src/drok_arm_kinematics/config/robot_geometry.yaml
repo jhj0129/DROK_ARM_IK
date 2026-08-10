@@ -1,0 +1,118 @@
+robot:
+  name: DROK_P_gripper_D405
+  base_frame: ARM_BASE_LINK
+  tool_frame: gripper_tcp
+  chain_joint_count: 9
+  movable_joint_count: 6
+kinematic_chain:
+  - index: 0
+    name: JOINT1
+    type: revolute
+    parent: ARM_BASE_LINK
+    child: LINK1
+    origin:
+      xyz: [0, 0, 0.016]
+      rpy: [0, 0, 0]
+    axis: [0, 0, 1]
+    limit:
+      lower: -6.50000
+      upper: 6.50000
+      effort: 35
+      velocity: 1.2
+  - index: 1
+    name: JOINT2
+    type: revolute
+    parent: LINK1
+    child: LINK2
+    origin:
+      xyz: [0, 0, 0.070000000000000007]
+      rpy: [0, 0, 0]
+    axis: [0, 1, 0]
+    limit:
+      lower: -0.5
+      upper: 3.1415899999999999
+      effort: 35
+      velocity: 1.2
+  - index: 2
+    name: JOINT3
+    type: revolute
+    parent: LINK2
+    child: LINK3
+    origin:
+      xyz: [-0.34999999999999998, -0.00025004999999999998, 0]
+      rpy: [0, 0, 0]
+    axis: [0, -1, 0]
+    limit:
+      lower: 0
+      upper: 3.1415899999999999
+      effort: 35
+      velocity: 1.2
+  - index: 3
+    name: JOINT4
+    type: revolute
+    parent: LINK3
+    child: LINK4
+    origin:
+      xyz: [0.29265000000000002, 0, 0.083467]
+      rpy: [0, 0, 0]
+    axis: [1, 0, 0]
+    limit:
+      lower: -5.8910099999999996
+      upper: 2.6424300000000001
+      effort: 35
+      velocity: 1.2
+  - index: 4
+    name: JOINT5
+    type: revolute
+    parent: LINK4
+    child: LINK5
+    origin:
+      xyz: [0.037999999999999999, 0, 0]
+      rpy: [0, 0, 0]
+    axis: [0, 0, -1]
+    limit:
+      lower: -1.5217499999999999
+      upper: 1.3194699999999999
+      effort: 35
+      velocity: 1.2
+  - index: 5
+    name: JOINT6
+    type: revolute
+    parent: LINK5
+    child: LINK6
+    origin:
+      xyz: [0.081000000000000003, 0, 0]
+      rpy: [-0.41887999999999997, 0, 0]
+    axis: [-1, 0, 0]
+    limit:
+      lower: -2.8772899999999999
+      upper: 1.3115000000000001
+      effort: 35
+      velocity: 1
+  - index: 6
+    name: LINK6_TO_GRIPPER_BASE_FIXED
+    type: fixed
+    parent: LINK6
+    child: GRIPPER_BASE
+    origin:
+      xyz: [0.080000000000000002, 0, 0]
+      rpy: [0, 0, 0]
+    axis: [0, 0, 0]
+  - index: 7
+    name: GRIPPER_CENTER_FIXED_JOINT
+    type: fixed
+    parent: GRIPPER_BASE
+    child: gripper_center
+    origin:
+      xyz: [0.059400000000000001, 0, 0]
+      rpy: [0, 0, 0]
+    axis: [0, 0, 0]
+  - index: 8
+    name: GRIPPER_TCP_FIXED_JOINT
+    type: fixed
+    parent: gripper_center
+    child: gripper_tcp
+    origin:
+      xyz: [0, 0, 0]
+      rpy: [0, 0, 0]
+    axis: [0, 0, 0]

@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot name="DROK_P_gripper_D405">
+  <link name="ARM_BASE_LINK">
+    <inertial>
+      <origin xyz="2.9813E-07 2.5769E-05 -0.0063007" rpy="0 0 0" />
+      <mass value="0.68746" />
+      <inertia ixx="0.00047228" ixy="3.6123E-09" ixz="-9.4716E-11" iyy="0.00047318" iyz="1.308E-07" izz="0.00078902" />
+    </inertial>
+  </link>
+  <joint name="JOINT1" type="revolute">
+    <origin xyz="0 0 0.016" rpy="0 0 0" />
+    <parent link="ARM_BASE_LINK" />
+    <child link="LINK1" />
+    <axis xyz="0 0 1" />
+    <limit lower="-6.50000" upper="6.50000" effort="35" velocity="1.2" />
+    <dynamics damping="2" friction="0.3" />
+  </joint>
+  <link name="LINK1">
+    <inertial>
+      <origin xyz="-6.5604E-05 0.00013328 0.05267" rpy="0 0 0" />
+      <mass value="1.8725" />
+      <inertia ixx="0.0014717" ixy="-9.2093E-15" ixz="8.8089E-07" iyy="0.0016195" iyz="1.8833E-10" izz="0.0015187" />
+    </inertial>
+  </link>
+  <link name="LINK2">
+    <inertial>
+      <origin xyz="-0.23683 -0.0027683 6.2911E-08" rpy="0 0 0" />
+      <mass value="1.0336" />
+      <inertia ixx="0.00086339" ixy="2.8839E-06" ixz="-2.0291E-09" iyy="0.0014398" iyz="1.0046E-09" izz="0.0014082" />
+    </inertial>
+  </link>
+  <joint name="JOINT2" type="revolute">
+    <origin xyz="0 0 0.07" rpy="0 0 0" />
+    <parent link="LINK1" />
+    <child link="LINK2" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.50000" upper="3.14159" effort="35" velocity="1.2" />
+    <dynamics damping="2" friction="0.3" />
+  </joint>
+  <link name="LINK3">
+    <inertial>
+      <origin xyz="0.10819 -0.00014566 0.068578" rpy="0 0 0" />
+      <mass value="0.61657" />
+      <inertia ixx="0.00040608" ixy="-1.0224E-06" ixz="-0.0001694" iyy="0.00081082" iyz="-6.7324E-07" izz="0.00057774" />
+    </inertial>
+  </link>
+  <joint name="JOINT3" type="revolute">
+    <origin xyz="-0.35 -0.00025005 0" rpy="0 0 0" />
+    <parent link="LINK2" />
+    <child link="LINK3" />
+    <axis xyz="0 -1 0" />
+    <limit lower="0.00000" upper="3.14159" effort="35" velocity="1.2" />
+    <dynamics damping="2" friction="0.3" />
+  </joint>
+  <link name="LINK4">
+    <inertial>
+      <origin xyz="0.020782 1.0814E-13 -0.0020268" rpy="0 0 0" />
+      <mass value="0.15667" />
+      <inertia ixx="5.9832E-05" ixy="-1.0164E-20" ixz="-1.6147E-07" iyy="4.862E-05" iyz="-2.099E-20" izz="6.3367E-05" />
+    </inertial>
+  </link>
+  <joint name="JOINT4" type="revolute">
+    <origin xyz="0.29265 0 0.083467" rpy="0 0 0" />
+    <parent link="LINK3" />
+    <child link="LINK4" />
+    <axis xyz="1 0 0" />
+    <limit lower="-5.89101" upper="2.64243" effort="35" velocity="1.2" />
+    <dynamics damping="2" friction="0.3" />
+  </joint>
+  <link name="LINK5">
+    <inertial>
+      <origin xyz="0.016203 -5.9624E-05 0.0040656" rpy="0 0 0" />
+      <mass value="0.31154" />
+      <inertia ixx="0.00010707" ixy="1.3296E-07" ixz="-5.2633E-08" iyy="0.00010649" iyz="7.1844E-07" izz="0.00015875" />
+    </inertial>
+  </link>
+  <joint name="JOINT5" type="revolute">
+    <origin xyz="0.038 0 0" rpy="0 0 0" />
+    <parent link="LINK4" />
+    <child link="LINK5" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-1.52175" upper="1.31947" effort="35" velocity="1.2" />
+    <dynamics damping="2" friction="0.3" />
+  </joint>
+  <link name="LINK6">
+    <inertial>
+      <origin xyz="0.028305 -0.00023763 0.011044" rpy="0 0 0" />
+      <mass value="0.093458" />
+      <inertia ixx="5.2224E-05" ixy="-1.3959E-07" ixz="-2.0275E-06" iyy="3.5228E-05" iyz="3.7919E-07" izz="3.453E-05" />
+    </inertial>
+  </link>
+  <joint name="JOINT6" type="revolute">
+    <origin xyz="0.081 0 0" rpy="-0.41888 0 0" />
+    <parent link="LINK5" />
+    <child link="LINK6" />
+    <axis xyz="-1 0 0" />
+    <limit lower="-2.87729" upper="1.31150" effort="35" velocity="1.0" />
+    <dynamics damping="2" friction="0.3" />
+  </joint>
+  <link name="GRIPPER_BASE">
+    <inertial>
+      <origin xyz="-0.015957 3.8498E-06 -6.7084E-05" rpy="0 0 0" />
+      <mass value="0.090747" />
+      <inertia ixx="0.00026818" ixy="-2.3586E-09" ixz="6.6695E-08" iyy="3.2287E-05" iyz="-7.8052E-09" izz="0.0002532" />
+    </inertial>
+  </link>
+  <joint name="LINK6_TO_GRIPPER_BASE_FIXED" type="fixed">
+    <origin xyz="0.08 0 0" rpy="0 0 0" />
+    <parent link="LINK6" />
+    <child link="GRIPPER_BASE" />
+    <axis xyz="0 0 0" />
+  </joint>
+  <link name="GRIPPER_LEFT">
+    <inertial>
+      <origin xyz="-0.017307 0.0022021 -0.0021854" rpy="0 0 0" />
+      <mass value="0.088523" />
+      <inertia ixx="6.4058E-05" ixy="-1.7328E-06" ixz="-1.1979E-06" iyy="0.00010173" iyz="-2.9905E-06" izz="8.4227E-05" />
+    </inertial>
+  </link>
+  <joint name="JOINT7" type="prismatic">
+    <origin xyz="0.0594 0.078 0" rpy="0 0 0" />
+    <parent link="GRIPPER_BASE" />
+    <child link="GRIPPER_LEFT" />
+    <axis xyz="0 -1 0" />
+    <limit lower="0.0" upper="0.05" effort="100.0" velocity="0.05" />
+    <dynamics damping="1.0" friction="0.1" />
+  </joint>
+  <link name="GRIPPER_RIGH">
+    <inertial>
+      <origin xyz="-0.017307 -0.0022021 0.0021854" rpy="0 0 0" />
+      <mass value="0.088523" />
+      <inertia ixx="6.4058E-05" ixy="1.7328E-06" ixz="1.1979E-06" iyy="0.00010173" iyz="-2.9905E-06" izz="8.4227E-05" />
+    </inertial>
+  </link>
+  <joint name="GRIPPER_RIGHT_JOINT" type="prismatic">
+    <origin xyz="0.0594 -0.078 0" rpy="0 0 0" />
+    <parent link="GRIPPER_BASE" />
+    <child link="GRIPPER_RIGH" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-0.05" upper="0.0" effort="100.0" velocity="0.05" />
+    <dynamics damping="1.0" friction="0.1" />
+  </joint>
+  <link name="gripper_center" />
+  <joint name="GRIPPER_CENTER_FIXED_JOINT" type="fixed">
+    <parent link="GRIPPER_BASE" />
+    <child link="gripper_center" />
+    <origin xyz="0.0594 0 0" rpy="0 0 0" />
+  </joint>
+  <link name="gripper_tcp" />
+  <joint name="GRIPPER_TCP_FIXED_JOINT" type="fixed">
+    <parent link="gripper_center" />
+    <child link="gripper_tcp" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </joint>
+</robot>

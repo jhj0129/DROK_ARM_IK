@@ -1,39 +1,25 @@
 #!/usr/bin/env bash
-# Source this file:
-#   source ~/DROK_ARM_IK/tools/source_env.sh
-#
-# Optional:
-#   export DROK_IK_ROOT=/path/to/IK_solver_MuJoCo
+# source ~/DROK_ARM_IK/tools/source_env.sh
 
-_DROK_TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export DROK_GRASP_WS="$(cd "$_DROK_TOOLS_DIR/.." && pwd)"
-export DROK_IK_ROOT="${DROK_IK_ROOT:-$HOME/IK_solver_MuJoCo}"
+_TOOLS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export DROK_ARM_IK_WS="$(cd "$_TOOLS/.." && pwd)"
+export DROK_GRASP_WS="$DROK_ARM_IK_WS"
 
 if [[ ! -f /opt/ros/humble/setup.bash ]]; then
-  echo "[ERROR] ROS 2 Humble setup not found: /opt/ros/humble/setup.bash"
+  echo "[ERROR] ROS 2 Humble not found."
   return 1
 fi
 
-if [[ ! -f "$DROK_IK_ROOT/install/setup.bash" ]]; then
-  echo "[ERROR] IK workspace is not built:"
-  echo "        $DROK_IK_ROOT/install/setup.bash"
-  echo "Set another path with:"
-  echo "        export DROK_IK_ROOT=/path/to/IK_solver_MuJoCo"
-  return 1
-fi
-
-if [[ ! -f "$DROK_GRASP_WS/install/setup.bash" ]]; then
-  echo "[ERROR] DROK grasp workspace is not built:"
-  echo "        $DROK_GRASP_WS/install/setup.bash"
+if [[ ! -f "$DROK_ARM_IK_WS/install/setup.bash" ]]; then
+  echo "[ERROR] Workspace not built."
   echo "Run:"
-  echo "        bash $DROK_GRASP_WS/tools/build.sh"
+  echo "  bash $DROK_ARM_IK_WS/tools/first_setup.sh"
   return 1
 fi
 
 source /opt/ros/humble/setup.bash
-source "$DROK_IK_ROOT/install/setup.bash"
-source "$DROK_GRASP_WS/install/setup.bash"
+source "$DROK_ARM_IK_WS/install/setup.bash"
 
-echo "[DROK ENV READY]"
-echo "  DROK_GRASP_WS=$DROK_GRASP_WS"
-echo "  DROK_IK_ROOT=$DROK_IK_ROOT"
+echo "[DROK ARM IK ENV READY]"
+echo "  WS=$DROK_ARM_IK_WS"
+echo "  external IK workspace: NOT REQUIRED"

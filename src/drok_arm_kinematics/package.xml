@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>drok_arm_kinematics</name>
+  <version>0.2.0</version>
+  <description>Standalone DROK ARM FK/IK for the real grasp workspace.</description>
+  <maintainer email="jhj0129@example.com">jhj0129</maintainer>
+  <license>Apache-2.0</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <build_depend>eigen</build_depend>
+  <build_depend>yaml_cpp_vendor</build_depend>
+  <exec_depend>yaml_cpp_vendor</exec_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

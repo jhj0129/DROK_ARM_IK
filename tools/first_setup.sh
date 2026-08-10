@@ -2,16 +2,12 @@
 set -Eeo pipefail
 
 WS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IK_ROOT="${DROK_IK_ROOT:-$HOME/IK_solver_MuJoCo}"
 
 echo "============================================================"
-echo " DROK_ARM_IK - first setup"
+echo " DROK_ARM_IK standalone setup"
 echo "============================================================"
-echo "WS_ROOT : $WS_ROOT"
-echo "IK_ROOT : $IK_ROOT"
-echo
-echo "This script does NOT change CAN interface state/bitrate."
-echo "This script does NOT write motor ROM/limits."
+echo "External IK workspace: NOT REQUIRED"
+echo "MuJoCo: NOT REQUIRED for fixed-practice real grasp"
 echo
 
 if [[ ! -f /opt/ros/humble/setup.bash ]]; then
@@ -24,14 +20,26 @@ if ! command -v colcon >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ ! -d "$IK_ROOT" ]]; then
-  echo "[ERROR] IK workspace directory not found:"
-  echo "        $IK_ROOT"
+missing=()
+
+if ! dpkg-query -W -f='${Status}' libeigen3-dev 2>/dev/null \
+    | grep -q "install ok installed"; then
+  missing+=("libeigen3-dev")
+fi
+
+if ! dpkg-query -W -f='${Status}' libyaml-cpp-dev 2>/dev/null \
+    | grep -q "install ok installed"; then
+  missing+=("libyaml-cpp-dev")
+fi
+
+if (( ${#missing[@]} > 0 )); then
+  echo "[ERROR] Missing packages:"
+  printf '  %s\n' "${missing[@]}"
   echo
-  echo "Put IK_solver_MuJoCo at ~/IK_solver_MuJoCo"
-  echo "or set:"
-  echo "        export DROK_IK_ROOT=/path/to/IK_solver_MuJoCo"
-  exit 1
+  echo "Install:"
+  echo "  sudo apt update"
+  echo "  sudo apt install -y ${missing[*]}"
+  exit 2
 fi
 
 chmod +x "$WS_ROOT"/tools/*.sh
@@ -39,30 +47,22 @@ chmod +x "$WS_ROOT"/tools/*.py
 
 source /opt/ros/humble/setup.bash
 
-if [[ ! -f "$IK_ROOT/install/setup.bash" ]]; then
-  echo
-  echo "[INFO] IK workspace install/setup.bash not found."
-  echo "[INFO] Building IK workspace first..."
-  cd "$IK_ROOT"
-  colcon build --symlink-install
-fi
-
-source "$IK_ROOT/install/setup.bash"
-
-echo
-echo "[INFO] Building DROK_ARM_IK workspace..."
-cd "$WS_ROOT"
 bash "$WS_ROOT/tools/build.sh"
 
+IK_EXE="$WS_ROOT/install/drok_arm_kinematics/lib/drok_arm_kinematics/solve_ik_pose"
+FK_EXE="$WS_ROOT/install/drok_arm_kinematics/lib/drok_arm_kinematics/test_fk"
+
+[[ -x "$IK_EXE" ]] || {
+  echo "[ERROR] solve_ik_pose was not built."
+  exit 3
+}
+
+[[ -x "$FK_EXE" ]] || {
+  echo "[ERROR] test_fk was not built."
+  exit 4
+}
+
 echo
-echo "============================================================"
-echo " SETUP COMPLETE"
-echo "============================================================"
-echo "Next terminal:"
-echo
+echo "[SETUP COMPLETE]"
+echo "Next:"
 echo "  source $WS_ROOT/tools/source_env.sh"
-echo
-echo "Then use:"
-echo "  bash $WS_ROOT/tools/run_real.sh"
-echo "  bash $WS_ROOT/tools/run_drok_auto_grasp_prototype1.sh"
-echo "  bash $WS_ROOT/tools/trigger_fixed_ik_grasp.sh"

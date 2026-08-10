@@ -13,8 +13,8 @@ Main changes from v2
    computes a maxSpeed that can actually follow the requested Poly5 duration,
    and waits for /joint_states to physically reach each target before continuing.
 5) Current gripper calibration:
-      OPEN 14.50 cm = protocol +150.240 deg
-      CLOSE 9.00 cm = protocol +1256.900 deg
+      OPEN 14.60 cm = protocol -1640.890 deg
+      CLOSE 9.70 cm = protocol -545.910 deg
 
 No CAN interface state/bitrate changes.
 No motor ROM/limit writes.
@@ -54,60 +54,38 @@ from std_msgs.msg import Float64
 
 
 # ============================================================
-# Paths
+# Paths — single standalone DROK_ARM_IK workspace
 # ============================================================
 
 HOME = Path.home()
-
-# Portable path policy:
-# - DROK_IK_ROOT can override the IK workspace location.
-# - DROK_GRASP_WS can override the real/grasp workspace location.
-# - Otherwise the grasp workspace is inferred from THIS file:
-#       <workspace>/tools/interactive_box_ik_grasp_v11.py
-#   so the username and absolute home path do not matter.
 SCRIPT_DIR = Path(__file__).resolve().parent
+WORKSPACE_ROOT = SCRIPT_DIR.parent
 
-IK_ROOT = Path(
-    os.environ.get(
-        "DROK_IK_ROOT",
-        str(HOME / "IK_solver_MuJoCo"),
-    )
-).expanduser().resolve()
-
-REAL_WS = Path(
-    os.environ.get(
-        "DROK_GRASP_WS",
-        str(SCRIPT_DIR.parent),
-    )
-).expanduser().resolve()
-
-GEOMETRY_PATH = (
-    IK_ROOT
+KINEMATICS_SOURCE_DIR = (
+    WORKSPACE_ROOT
     / "src"
     / "drok_arm_kinematics"
+)
+
+GEOMETRY_PATH = (
+    KINEMATICS_SOURCE_DIR
     / "config"
     / "robot_geometry.yaml"
 )
 
 URDF_PATH = (
-    IK_ROOT
-    / "src"
-    / "drok_arm_mujoco"
-    / "urdf"
-    / "drok_arm_mujoco.urdf"
+    KINEMATICS_SOURCE_DIR
+    / "config"
+    / "drok_arm_kinematics_only.urdf"
 )
 
 BASELINE_IK_PATH = (
-    IK_ROOT
-    / "src"
-    / "drok_arm_control"
-    / "scripts"
-    / "baseline_nearest_ik_dry_run.py"
+    SCRIPT_DIR
+    / "baseline_nearest_ik_core.py"
 )
 
-
 IK_SOLVER_EXE = (
-    IK_ROOT
+    WORKSPACE_ROOT
     / "install"
     / "drok_arm_kinematics"
     / "lib"
@@ -116,13 +94,15 @@ IK_SOLVER_EXE = (
 )
 
 FK_EXE = (
-    IK_ROOT
+    WORKSPACE_ROOT
     / "install"
     / "drok_arm_kinematics"
     / "lib"
     / "drok_arm_kinematics"
     / "test_fk"
 )
+
+REAL_WS = WORKSPACE_ROOT
 
 REAL_MAPPING_CANDIDATES = [
     (
@@ -143,23 +123,13 @@ REAL_MAPPING_CANDIDATES = [
     ),
 ]
 
+# Legacy preview only. It is not used by the automatic/fixed real grasp.
 MJCF_CANDIDATES = [
     (
         REAL_WS
         / "runtime"
         / "existing_mujoco_environment"
         / "drok_arm_complete_environment.xml"
-    ),
-    (
-        IK_ROOT
-        / "manual_pose_runtime"
-        / "generated"
-        / "manual_robot_with_scene.xml"
-    ),
-    (
-        IK_ROOT
-        / "manual_mujoco"
-        / "drok_arm_manual.xml"
     ),
 ]
 
