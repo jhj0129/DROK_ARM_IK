@@ -1,0 +1,69 @@
+real_joint_state_mapper:
+  ros__parameters:
+    publish_hz: 50.0
+    frame_id: ARM_BASE_LINK
+
+    # New URDF / MuJoCo logical joint coordinates at the physically verified real HOME.
+    model_home_rad:
+      [-0.000001628, 0.297361544, 0.296742637,
+       -0.000030712, 0.000061231, 0.000102331]
+
+    # Primary motor feedback topics in JOINT1..JOINT6 order.
+    motor_topics:
+      - /motor_angles/can10_motor_0x141
+      - /motor_angles/can10_motor_0x142
+      - /motor_angles/can10_motor_0x144
+      - /motor_angles/can11_motor_0x141
+      - /motor_angles/can11_motor_0x142
+      - /motor_angles/can11_motor_0x143
+
+    # Verified physical raw angles at the same real HOME.
+    raw_home_deg:
+      [5.109444444444445, 33.330833, 21.615833,
+       30.480000, 0.380000, -3.444722222222]
+
+    # Raw motor-angle change for a positive NEW-MODEL joint-coordinate change.
+    # This is the hardware conversion from the field-validated GitHub bridge.
+    raw_per_model_sign: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+    # Gripper feedback remains in the field-validated JOINT7 convention.
+    gripper_topic: /motor_angles/can11_motor_0x144
+    gripper_raw_open_deg: -18.128611166667
+    gripper_raw_close_deg: 69.592500000000
+    gripper_q_open: -1.70000
+    gripper_q_close: 45.00000
+
+moveit_to_rmd_bridge:
+  ros__parameters:
+    dry_run: true
+    default_max_speed: 30
+    gripper_max_speed: 50
+
+    # The command bridge consumes NEW URDF / MuJoCo joint coordinates directly.
+    model_home_rad:
+      [-0.000001628, 0.297361544, 0.296742637,
+       -0.000030712, 0.000061231, 0.000102331]
+
+    primary_motor_ifaces: [can10, can10, can10, can11, can11, can11]
+    primary_motor_ids: [321, 322, 324, 321, 322, 323]
+    primary_raw_home_deg:
+      [5.109444444444445, 33.330833, 21.615833,
+       30.480000, 0.380000, -3.444722222222]
+    raw_per_model_sign: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    primary_gear_ratio: [36.0, 36.0, 36.0,
+       1.0, 1.0, 6.000000000000]
+
+    # JOINT2 has a verified opposite-direction mirror motor.
+    joint2_mirror_iface: can10
+    joint2_mirror_id: 323
+    joint2_mirror_raw_home_deg: -0.030000
+    joint2_mirror_sign: -1.0
+    joint2_mirror_gear_ratio: 36.0
+
+    gripper_iface: can11
+    gripper_id: 324
+    gripper_raw_home_deg: -18.128611166667
+    gripper_raw_close_deg: 69.592500000000
+    gripper_q_home: -1.70000
+    gripper_q_close: 45.000000000000
+    gripper_gear_ratio: 6.000000000000
