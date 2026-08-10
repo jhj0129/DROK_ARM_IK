@@ -1,470 +1,675 @@
-DROK_ARM_IK
-===========
+# DROK_ARM_IK
 
-DROK ARM 실제 로봇용 고정 연습위치 IK grasp 코드입니다.
+DROK ARM 실제 로봇용 **고정 연습위치 IK Grasp** 코드입니다.
 
-현재 기본 모드
---------------
-- 고정 연습위치 사용
-- YOLO 물체 XYZ / camera TF 좌표는 사용하지 않음
-- `/drok_arm_auto/enable=True`가 들어오면 고정된 위치의 물체를 잡음
-- 시작 시 EXACT HOME_Q 이동
-- 그리퍼 FULL OPEN
-- TOP-DOWN IK
-- APPROACH1 -> APPROACH2 -> GRASP -> LIFT
-- 물체를 잡은 상태로 HOME 복귀
+현재 기본 모드는 **고정 연습위치 사용**입니다.
 
-현재 고정 목표:
-  X = +0.4000 m
-  Y = +0.0000 m
-  Z = -0.0325 m
+- YOLO 물체 XYZ / Camera TF 좌표는 사용하지 않음
+- `/drok_arm_auto/enable=True` 입력 시 고정된 위치의 물체를 잡음
+- 시작 시 `EXACT HOME_Q` 이동
+- 그리퍼 `FULL OPEN`
+- Top-Down IK 계산
+- `APPROACH1 → APPROACH2 → GRASP → LIFT`
+- 물체를 잡은 상태로 `HOME` 복귀
 
-필수 외부 IK workspace:
-  https://github.com/jhj0129/IK_solver_MuJoCo
+---
 
-============================================================
-1. 처음 GitHub 파일을 받은 뒤 압축 푸는 방법
-============================================================
+## 1. 현재 기본 설정
 
-GitHub에서 "Download ZIP"으로 받았다고 가정합니다.
+현재 고정 목표 위치는 `ARM_BASE_LINK` 기준입니다.
+
+```text
+X = +0.4000 m
+Y = +0.0000 m
+Z = -0.0325 m
+```
+
+현재 코드 설정:
+
+```python
+USE_FIXED_PRACTICE_TARGET = True
+
+FIXED_GRASP_X_M = 0.4000
+FIXED_GRASP_Y_M = 0.0000
+FIXED_GRASP_Z_M = -0.0325
+
+START_ENABLED = False
+```
+
+필수 외부 IK Workspace:
+
+```text
+https://github.com/jhj0129/IK_solver_MuJoCo
+```
+
+---
+
+# 2. 처음 파일을 받은 뒤 압축 풀기
+
+GitHub에서 **Download ZIP**으로 받았다고 가정합니다.
 
 기본 다운로드 파일명:
-  ~/Downloads/DROK_ARM_IK-main.zip
 
-Terminal:
+```text
+~/Downloads/DROK_ARM_IK-main.zip
+```
 
-  cd ~
+### Terminal 1
 
-  unzip ~/Downloads/DROK_ARM_IK-main.zip
+```bash
+cd ~
 
-  mv ~/DROK_ARM_IK-main ~/DROK_ARM_IK
+unzip ~/Downloads/DROK_ARM_IK-main.zip
 
-  cd ~/DROK_ARM_IK
+mv ~/DROK_ARM_IK-main ~/DROK_ARM_IK
 
-이 저장소는 "빌드 전 소스"만 포함합니다.
-즉 build/, install/, log/는 GitHub에 올리지 않습니다.
+cd ~/DROK_ARM_IK
+```
 
-압축을 푼 뒤 확인:
+압축이 정상적으로 풀렸는지 확인:
 
-  ls ~/DROK_ARM_IK
+```bash
+ls ~/DROK_ARM_IK
+```
 
-정상적인 주요 폴더:
-  src
-  tools
+정상적인 주요 항목:
 
-============================================================
-2. IK_solver_MuJoCo 준비
-============================================================
+```text
+README.md
+src
+tools
+```
 
-이 프로젝트는 IK 계산을 위해 별도의 IK_solver_MuJoCo workspace를 사용합니다.
+이 저장소는 **빌드 전 소스만 포함**합니다.
+
+따라서 아래 폴더는 GitHub에 포함하지 않습니다.
+
+```text
+build/
+install/
+log/
+```
+
+---
+
+# 3. IK_solver_MuJoCo 준비
+
+이 프로젝트는 IK 계산을 위해 별도의 `IK_solver_MuJoCo` Workspace를 사용합니다.
 
 기본 위치:
-  ~/IK_solver_MuJoCo
+
+```text
+~/IK_solver_MuJoCo
+```
 
 아직 없다면:
 
-  cd ~
-  git clone https://github.com/jhj0129/IK_solver_MuJoCo.git
+### Terminal 1
 
-이미 다른 위치에 있다면:
+```bash
+cd ~
 
-  export DROK_IK_ROOT=/원하는/경로/IK_solver_MuJoCo
+git clone https://github.com/jhj0129/IK_solver_MuJoCo.git
+```
 
-============================================================
-3. 처음 한 번 빌드
-============================================================
+IK Workspace가 다른 위치에 있다면:
 
-Terminal:
+```bash
+export DROK_IK_ROOT=/원하는/경로/IK_solver_MuJoCo
+```
 
-  cd ~/DROK_ARM_IK
+예:
 
-  chmod +x tools/*.sh
-  chmod +x tools/*.py
+```bash
+export DROK_IK_ROOT=/home/robot/IK_solver_MuJoCo
+```
 
-  bash tools/first_setup.sh
+---
 
-first_setup.sh는:
-  - ROS 2 Humble 확인
-  - IK_solver_MuJoCo 확인
-  - 필요 시 IK workspace 빌드
-  - DROK_ARM_IK의 drok_real_arm_bridge 빌드
-를 수행합니다.
+# 4. 처음 한 번 빌드
+
+새 컴퓨터에서 처음 사용할 때 한 번 실행합니다.
+
+### Terminal 1
+
+```bash
+cd ~/DROK_ARM_IK
+
+chmod +x tools/*.sh
+chmod +x tools/*.py
+
+bash tools/first_setup.sh
+```
+
+`first_setup.sh`는 다음 작업을 수행합니다.
+
+```text
+ROS 2 Humble 확인
+→ IK_solver_MuJoCo 확인
+→ 필요 시 IK Workspace 빌드
+→ DROK_ARM_IK Workspace 빌드
+```
 
 직접 빌드하려면:
 
-  cd ~/DROK_ARM_IK
+```bash
+cd ~/DROK_ARM_IK
 
-  source /opt/ros/humble/setup.bash
-  source ~/IK_solver_MuJoCo/install/setup.bash
+source /opt/ros/humble/setup.bash
+source ~/IK_solver_MuJoCo/install/setup.bash
 
-  bash tools/build.sh
+bash tools/build.sh
+```
 
-============================================================
-4. 이후 새 터미널에서 환경 소싱
-============================================================
+---
 
-각 새 터미널에서:
+# 5. 새 터미널마다 환경 소싱
 
-  source ~/DROK_ARM_IK/tools/source_env.sh
+빌드가 끝난 뒤 새 터미널을 열 때마다 아래 한 줄을 실행합니다.
 
-이 한 줄이 기본적으로:
-  /opt/ros/humble/setup.bash
-  ~/IK_solver_MuJoCo/install/setup.bash
-  ~/DROK_ARM_IK/install/setup.bash
-를 source합니다.
+```bash
+source ~/DROK_ARM_IK/tools/source_env.sh
+```
 
-============================================================
-5. 고정 연습위치 물체 잡기
-============================================================
+이 스크립트가 자동으로 다음 환경을 source 합니다.
 
-현재 설정에서는 물체 좌표 토픽을 받지 않아도 됩니다.
+```bash
+source /opt/ros/humble/setup.bash
+source ~/IK_solver_MuJoCo/install/setup.bash
+source ~/DROK_ARM_IK/install/setup.bash
+```
 
-고정 연습위치:
-  ARM_BASE_LINK 기준
-  (+0.4000, +0.0000, -0.0325) m
+---
 
-----------------------------
-Terminal 1 - 실제 팔 bridge
-----------------------------
+# 6. 고정 연습위치 물체 잡기
 
-  source ~/DROK_ARM_IK/tools/source_env.sh
+현재 설정에서는 **물체 좌표 토픽이 들어오지 않아도 됩니다.**
 
-  bash ~/DROK_ARM_IK/tools/run_real.sh
+IK 모드가 켜지면 아래 위치를 사용합니다.
+
+```text
+ARM_BASE_LINK 기준
+
+X = +0.4000 m
+Y = +0.0000 m
+Z = -0.0325 m
+```
+
+## Terminal 1 - 실제 팔 Bridge 실행
+
+```bash
+source ~/DROK_ARM_IK/tools/source_env.sh
+
+bash ~/DROK_ARM_IK/tools/run_real.sh
+```
 
 이 터미널은 계속 켜둡니다.
 
----------------------------------
-Terminal 2 - 자동 IK grasp 노드
----------------------------------
+---
 
-  source ~/DROK_ARM_IK/tools/source_env.sh
+## Terminal 2 - 자동 IK Grasp 노드 실행
 
-  bash ~/DROK_ARM_IK/tools/run_drok_auto_grasp_prototype1.sh
+```bash
+source ~/DROK_ARM_IK/tools/source_env.sh
 
-정상 시작 로그 예:
+bash ~/DROK_ARM_IK/tools/run_drok_auto_grasp_prototype1.sh
+```
 
-  TARGET MODE       : FIXED PRACTICE
-  Fixed target [ARM_BASE_LINK m]: (+0.4000, +0.0000, -0.0325)
-  IK mode trigger   : /drok_arm_auto/enable=True
-  YOLO XYZ / TF     : IGNORED
-  Auto start enabled: False
+정상 시작 로그:
 
---------------------------------
-Terminal 3 - IK 모드 1회 실행
---------------------------------
+```text
+TARGET MODE       : FIXED PRACTICE
+Fixed target [ARM_BASE_LINK m]: (+0.4000, +0.0000, -0.0325)
+IK mode trigger   : /drok_arm_auto/enable=True
+YOLO XYZ / TF     : IGNORED
+Auto start enabled: False
+```
 
-  source ~/DROK_ARM_IK/tools/source_env.sh
+이 상태에서는 아직 로봇이 잡기 동작을 시작하지 않습니다.
 
-  bash ~/DROK_ARM_IK/tools/trigger_fixed_ik_grasp.sh
+---
 
-이 명령은 내부적으로 다음 토픽을 한 번 보냅니다:
+## Terminal 3 - IK 모드 ON / 물체 잡기 1회 실행
 
-  /drok_arm_auto/enable = True
+```bash
+source ~/DROK_ARM_IK/tools/source_env.sh
 
-동작 순서:
+bash ~/DROK_ARM_IK/tools/trigger_fixed_ik_grasp.sh
+```
 
-  IK MODE ON
-  -> 고정 연습위치
-  -> EXACT HOME_Q
-  -> GRIPPER FULL OPEN
-  -> IK 계산
-  -> PREALIGN
-  -> APPROACH1
-  -> APPROACH2
-  -> GRASP/CLOSE
-  -> LIFT
-  -> HOME
+이 명령이 실행되면 내부적으로:
 
-============================================================
-6. 고정 물체 위치 수정
-============================================================
+```text
+/drok_arm_auto/enable = True
+```
 
-파일:
-  ~/DROK_ARM_IK/tools/drok_auto_grasp_prototype1.py
+가 한 번 publish 됩니다.
 
-파일 위쪽 USER CONFIGURATION 부분:
+실제 동작 순서:
 
-  USE_FIXED_PRACTICE_TARGET = True
+```text
+IK MODE ON
+→ 고정 연습위치 사용
+→ EXACT HOME_Q
+→ GRIPPER FULL OPEN
+→ IK 계산
+→ PREALIGN
+→ APPROACH1
+→ APPROACH2
+→ GRASP / CLOSE
+→ LIFT
+→ HOME
+```
 
-  FIXED_GRASP_X_M = 0.4000
-  FIXED_GRASP_Y_M = 0.0000
-  FIXED_GRASP_Z_M = -0.0325
+---
+
+# 7. 물체 위치 수정
+
+수정 파일:
+
+```text
+~/DROK_ARM_IK/tools/drok_auto_grasp_prototype1.py
+```
+
+파일 위쪽의 다음 부분을 수정합니다.
+
+```python
+USE_FIXED_PRACTICE_TARGET = True
+
+FIXED_GRASP_X_M = 0.4000
+FIXED_GRASP_Y_M = 0.0000
+FIXED_GRASP_Z_M = -0.0325
+```
 
 좌표계:
-  +X = 로봇 전방
-  +Y = 로봇 왼쪽
-  +Z = 위쪽
 
-예시 1:
-물체를 5 cm 더 앞으로 설정:
+```text
++X = 로봇 전방
++Y = 로봇 왼쪽
++Z = 위쪽
+```
 
-  FIXED_GRASP_X_M = 0.4500
+## 예시 1 - 물체를 5 cm 더 앞으로
 
-예시 2:
-물체를 현재보다 10 cm 더 높게 설정:
+기존:
 
-  기존 Z = -0.0325
-  +0.10 m
+```python
+FIXED_GRASP_X_M = 0.4000
+```
 
-  FIXED_GRASP_Z_M = 0.0675
+수정:
 
-예시 3:
-물체를 오른쪽 5 cm 위치로 설정:
+```python
+FIXED_GRASP_X_M = 0.4500
+```
 
-  +Y가 왼쪽이므로 오른쪽은 음수.
+---
 
-  FIXED_GRASP_Y_M = -0.0500
+## 예시 2 - 물체를 현재보다 10 cm 더 높게
 
-수정 후 Python 파일만 바뀐 경우 colcon 재빌드는 필요 없습니다.
+기존:
+
+```python
+FIXED_GRASP_Z_M = -0.0325
+```
+
+10 cm 위로 이동:
+
+```python
+FIXED_GRASP_Z_M = 0.0675
+```
+
+---
+
+## 예시 3 - 물체를 오른쪽 5 cm로 이동
+
+`+Y`가 왼쪽이므로 오른쪽은 `-Y`입니다.
+
+```python
+FIXED_GRASP_Y_M = -0.0500
+```
+
+Python 설정값만 수정한 경우 **colcon 재빌드는 필요 없습니다.**
+
 자동 IK 노드를 종료한 뒤 다시 실행하면 새 값이 적용됩니다.
 
-============================================================
-7. 오프셋 수정
-============================================================
+---
 
-같은 파일:
-  ~/DROK_ARM_IK/tools/drok_auto_grasp_prototype1.py
+# 8. 오프셋 수정
+
+수정 파일:
+
+```text
+~/DROK_ARM_IK/tools/drok_auto_grasp_prototype1.py
+```
 
 설정 위치:
 
-  ROBOT_OFFSET_FORWARD_CM = 0.0
-  ROBOT_OFFSET_RIGHT_CM = 0.0
-  ROBOT_OFFSET_UP_CM = 0.0
+```python
+ROBOT_OFFSET_FORWARD_CM = 0.0
+ROBOT_OFFSET_RIGHT_CM = 0.0
+ROBOT_OFFSET_UP_CM = 0.0
+```
 
-이번 GitHub 버전에서는 이 오프셋을:
-  - 고정 연습위치 모드
-  - 추후 CAMERA/YOLO 모드
-둘 다에 적용하도록 구성했습니다.
+오프셋 방향:
 
-방향:
-  FORWARD +  -> 최종 X 증가
-  RIGHT   +  -> 최종 Y 감소
-  UP      +  -> 최종 Z 증가
+```text
+FORWARD +  → 최종 X 증가
+RIGHT   +  → 최종 Y 감소
+UP      +  → 최종 Z 증가
+```
 
-예시:
-고정 좌표는 그대로 두고 실제 grasp 위치만 2 cm 앞으로 미세 조정:
+현재 버전에서는 오프셋이:
 
-  ROBOT_OFFSET_FORWARD_CM = 2.0
+```text
+고정 연습위치 모드
+카메라 / YOLO 모드
+```
 
-오른쪽으로 3 cm 보정:
+둘 다에 적용됩니다.
 
-  ROBOT_OFFSET_RIGHT_CM = 3.0
+## 예시 - 2 cm 앞으로 보정
 
-위쪽으로 1.5 cm 보정:
+```python
+ROBOT_OFFSET_FORWARD_CM = 2.0
+```
 
-  ROBOT_OFFSET_UP_CM = 1.5
+## 예시 - 오른쪽으로 3 cm 보정
 
-최종 목표는:
+```python
+ROBOT_OFFSET_RIGHT_CM = 3.0
+```
 
-  fixed target + offset
+## 예시 - 위쪽으로 1.5 cm 보정
 
-형태로 계산됩니다.
+```python
+ROBOT_OFFSET_UP_CM = 1.5
+```
 
-============================================================
-8. 그리퍼 저장된 OPEN / GRASP 위치로 자동 이동
-============================================================
+최종 목표 위치는:
 
-먼저 Terminal 1의 실제 팔 bridge가 켜져 있어야 합니다.
+```text
+고정 물체 위치 + 오프셋
+```
 
-FULL OPEN으로 바로 이동:
+으로 계산됩니다.
 
-  source ~/DROK_ARM_IK/tools/source_env.sh
+---
 
-  bash ~/DROK_ARM_IK/tools/gripper_open.sh
+# 9. 그리퍼 FULL OPEN 위치로 자동 이동
 
-GRASP/CLOSE 저장 위치로 바로 이동:
+먼저 **Terminal 1에서 실제 팔 Bridge가 실행 중이어야 합니다.**
 
-  source ~/DROK_ARM_IK/tools/source_env.sh
+### Terminal 2
 
-  bash ~/DROK_ARM_IK/tools/gripper_grasp.sh
+```bash
+source ~/DROK_ARM_IK/tools/source_env.sh
 
-현재 저장값만 확인:
+bash ~/DROK_ARM_IK/tools/gripper_open.sh
+```
 
-  source ~/DROK_ARM_IK/tools/source_env.sh
-
-  python3 ~/DROK_ARM_IK/tools/drok_gripper_preset.py status
+현재 저장된 `FULL OPEN` 위치로 이동합니다.
 
 현재 기본 저장값:
 
-  OPEN
-    gap      = 14.60 cm
-    protocol = -1640.890 deg
+```text
+OPEN GAP      = 14.60 cm
+OPEN PROTOCOL = -1640.890 deg
+```
 
-  GRASP
-    gap      = 9.70 cm
-    protocol = -545.910 deg
+---
 
-============================================================
-9. 그리퍼 OPEN / GRASP 위치를 새로 보정해서 저장
-============================================================
+# 10. 그리퍼 GRASP 위치로 자동 이동
 
-실제 팔 bridge를 먼저 실행:
+먼저 **Terminal 1에서 실제 팔 Bridge가 실행 중이어야 합니다.**
 
-Terminal 1:
+### Terminal 2
 
-  source ~/DROK_ARM_IK/tools/source_env.sh
+```bash
+source ~/DROK_ARM_IK/tools/source_env.sh
 
-  bash ~/DROK_ARM_IK/tools/run_real.sh
+bash ~/DROK_ARM_IK/tools/gripper_grasp.sh
+```
 
-Terminal 2:
+현재 저장된 `GRASP / CLOSE` 위치로 이동합니다.
 
-  source ~/DROK_ARM_IK/tools/source_env.sh
+현재 기본 저장값:
 
-  python3 ~/DROK_ARM_IK/tools/drok_gripper_opening_calibration_jog.py
+```text
+GRASP GAP      = 9.70 cm
+GRASP PROTOCOL = -545.910 deg
+```
 
-보정 프로그램 안의 명령:
+---
 
-  -1
-    현재 feedback 기준 OPEN 방향으로 1 topic-degree 이동
+# 11. 현재 그리퍼 OPEN / GRASP 저장값 확인
 
-  +1
-    현재 feedback 기준 CLOSE 방향으로 1 topic-degree 이동
+```bash
+source ~/DROK_ARM_IK/tools/source_env.sh
 
-  s
-    현재 feedback 확인
+python3 ~/DROK_ARM_IK/tools/drok_gripper_preset.py status
+```
 
-  saved
-    현재 코드에 저장된 OPEN / GRASP 값 확인
+출력 예:
 
-실제 FULL OPEN 위치까지 맞춘 후:
+```text
+OPEN : 14.60 cm
+GRASP: 9.70 cm
+```
 
-  gripper> save open
+---
 
-실제 gap까지 같이 저장하려면 예:
+# 12. 그리퍼 OPEN / GRASP 위치 새로 보정하기
 
-  gripper> save open 14.6
+먼저 실제 팔 Bridge를 실행합니다.
 
-실제 물체를 잡는 GRASP 위치까지 맞춘 후:
+## Terminal 1
 
-  gripper> save grasp
+```bash
+source ~/DROK_ARM_IK/tools/source_env.sh
 
-실제 gap까지 같이 저장하려면 예:
+bash ~/DROK_ARM_IK/tools/run_real.sh
+```
 
-  gripper> save grasp 9.7
+## Terminal 2
 
-저장 시:
-  ~/DROK_ARM_IK/tools/interactive_box_ik_grasp_v11.py
+```bash
+source ~/DROK_ARM_IK/tools/source_env.sh
 
-안의 다음 값이 자동으로 수정됩니다:
+python3 ~/DROK_ARM_IK/tools/drok_gripper_opening_calibration_jog.py
+```
 
-  GRIPPER_OPEN_GAP_CM
-  GRIPPER_OPEN_PROTOCOL_DEG
+보정 프로그램에서 사용할 수 있는 주요 명령:
 
-  GRIPPER_CLOSE_GAP_CM
-  GRIPPER_CLOSE_PROTOCOL_DEG
+```text
+-1
+```
 
-저장 전 자동 backup도 생성됩니다.
+현재 feedback 기준으로 OPEN 방향으로 1 topic-degree 이동.
 
-주의:
-기존 저장값과 현재 feedback이 크게 다르면 프로그램이
-정확히 "SAVE"를 다시 입력하도록 요구합니다.
-실제 그리퍼 위치를 눈으로 확인한 경우에만 저장합니다.
+```text
++1
+```
 
-============================================================
-10. 고정모드 / 카메라모드 전환
-============================================================
+현재 feedback 기준으로 CLOSE 방향으로 1 topic-degree 이동.
 
-파일:
-  ~/DROK_ARM_IK/tools/drok_auto_grasp_prototype1.py
+```text
+s
+```
 
-현재:
+현재 feedback 확인.
 
-  USE_FIXED_PRACTICE_TARGET = True
+```text
+saved
+```
 
-따라서:
-  YOLO XYZ 무시
-  TF 무시
-  IK 모드 ON 시 고정위치 사용
+현재 코드에 저장된 OPEN / GRASP 값 확인.
 
-추후 실제 카메라 좌표를 쓰려면:
+---
 
-  USE_FIXED_PRACTICE_TARGET = False
+## FULL OPEN 위치 저장
 
-로 변경하면 기존 YOLO + TF 경로를 사용할 수 있습니다.
+실제 그리퍼를 원하는 완전 열림 위치까지 이동시킨 뒤:
 
-============================================================
-11. 주요 파일
-============================================================
+```text
+gripper> save open
+```
 
-  src/drok_real_arm_bridge/
-    실제 RMD motor bridge 및 real_mapping.yaml
+실측 간격까지 같이 저장하려면:
 
-  tools/interactive_box_ik_grasp_v11.py
-    IK / FK / TOP-DOWN 경로 / 실제 RMD / gripper 핵심 코드
+```text
+gripper> save open 14.6
+```
 
-  tools/drok_auto_grasp_prototype1.py
-    자동 IK 모드 및 고정/카메라 목표 선택
+---
 
-  tools/drok_manual_box_grasp_practice.py
-    수동 연습용
+## GRASP 위치 저장
 
-  tools/drok_gripper_opening_calibration_jog.py
-    그리퍼 OPEN / GRASP 위치 보정 및 저장
+실제 물체를 잡는 위치까지 이동시킨 뒤:
 
-  tools/drok_gripper_preset.py
-    저장된 OPEN / GRASP 위치로 즉시 이동
+```text
+gripper> save grasp
+```
 
-  tools/gripper_open.sh
-    저장된 OPEN 위치로 즉시 이동
+실측 간격까지 같이 저장하려면:
 
-  tools/gripper_grasp.sh
-    저장된 GRASP 위치로 즉시 이동
+```text
+gripper> save grasp 9.7
+```
 
-  tools/run_real.sh
-    실제 팔 bridge 실행
+저장하면 아래 파일이 자동으로 수정됩니다.
 
-  tools/run_drok_auto_grasp_prototype1.sh
-    자동 IK 노드 실행
+```text
+~/DROK_ARM_IK/tools/interactive_box_ik_grasp_v11.py
+```
 
-  tools/trigger_fixed_ik_grasp.sh
-    IK 모드 ON / 고정위치 grasp 1회 실행
+수정되는 값:
 
-  tools/first_setup.sh
-    새 컴퓨터 첫 빌드
+```python
+GRIPPER_OPEN_GAP_CM
+GRIPPER_OPEN_PROTOCOL_DEG
 
-  tools/source_env.sh
-    ROS + IK + workspace 환경 소싱
+GRIPPER_CLOSE_GAP_CM
+GRIPPER_CLOSE_PROTOCOL_DEG
+```
 
-============================================================
-12. GitHub에 올리지 않는 파일
-============================================================
+저장 전에 자동 Backup도 생성됩니다.
 
-다음은 빌드 생성물이므로 저장소에 올리지 않습니다:
+기존 저장값과 현재 feedback 차이가 매우 큰 경우:
 
-  build/
-  install/
-  log/
-  __pycache__/
-  *.pyc
+```text
+SAVE
+```
 
-.gitignore에 포함되어 있습니다.
+를 다시 입력하도록 요구할 수 있습니다.
 
-============================================================
-13. 안전 관련
-============================================================
+실제 그리퍼 위치를 직접 확인한 경우에만 저장하십시오.
 
-이 workspace의 실행/설치 스크립트는:
-  - CAN interface up/down 상태를 변경하지 않습니다.
-  - CAN bitrate를 변경하지 않습니다.
-  - 모터 ROM/limit을 쓰지 않습니다.
+---
 
-실제 CAN 장치는 실행 전에 시스템에서 이미 정상 준비되어 있어야 합니다.
+# 13. 고정 연습위치 모드 / 카메라 모드 전환
 
-============================================================
-14. 현재 확인된 실행 상태
-============================================================
+수정 파일:
 
-실제 로봇에서 다음 과정까지 확인했습니다:
+```text
+~/DROK_ARM_IK/tools/drok_auto_grasp_prototype1.py
+```
 
-  EXACT HOME
-  FULL OPEN
-  TOP-DOWN IK
-  APPROACH1
-  APPROACH2
-  GRASP/CLOSE
-  LIFT
+현재 설정:
 
-최근 테스트에서는 마지막 LIFT -> HOME에서 JOINT6 오차가 약 1.37 deg
-남아 현재 arrival tolerance 1.0 deg를 넘으면서 timeout이 발생한 적이 있습니다.
+```python
+USE_FIXED_PRACTICE_TARGET = True
+```
 
-따라서 실제 장비에서 HOME 복귀 완료 status까지 반드시 확인하십시오.
+이 상태에서는:
+
+```text
+YOLO XYZ 무시
+Camera TF 무시
+IK 모드 ON → 고정 연습위치 사용
+```
+
+추후 실제 카메라 좌표를 사용하려면:
+
+```python
+USE_FIXED_PRACTICE_TARGET = False
+```
+
+로 변경합니다.
+
+---
+
+# 14. 주요 파일
+
+```text
+DROK_ARM_IK/
+├── README.md
+│
+├── src/
+│   └── drok_real_arm_bridge/
+│
+└── tools/
+    ├── interactive_box_ik_grasp_v11.py
+    ├── drok_auto_grasp_prototype1.py
+    ├── drok_manual_box_grasp_practice.py
+    ├── drok_gripper_opening_calibration_jog.py
+    ├── drok_gripper_preset.py
+    ├── gripper_open.sh
+    ├── gripper_grasp.sh
+    ├── run_real.sh
+    ├── run_drok_auto_grasp_prototype1.sh
+    ├── trigger_fixed_ik_grasp.sh
+    ├── first_setup.sh
+    └── source_env.sh
+```
+
+---
+
+# 15. GitHub에 올리지 않는 파일
+
+아래 항목은 빌드 생성물이므로 저장소에 올리지 않습니다.
+
+```text
+build/
+install/
+log/
+__pycache__/
+*.pyc
+```
+
+`.gitignore`에 포함되어 있습니다.
+
+---
+
+# 16. 안전 관련
+
+이 Workspace의 실행 및 설치 스크립트는 다음 설정을 변경하지 않습니다.
+
+```text
+CAN interface UP / DOWN
+CAN bitrate
+Motor ROM
+Motor limit
+```
+
+실제 CAN 장치는 프로그램 실행 전에 시스템에서 이미 정상적으로 준비되어 있어야 합니다.
+
+---
+
+# 17. 현재 확인된 실제 로봇 실행 상태
+
+실제 로봇에서 아래 과정까지 동작을 확인했습니다.
+
+```text
+EXACT HOME
+→ FULL OPEN
+→ TOP-DOWN IK
+→ APPROACH1
+→ APPROACH2
+→ GRASP / CLOSE
+→ LIFT
+```
+
+최근 테스트에서는 마지막 `LIFT → HOME` 과정에서 `JOINT6` 오차가 약 `1.37°` 남아 현재 도착 허용오차 `1.0°`를 넘으면서 timeout이 발생한 적이 있습니다.
+
+따라서 실제 장비에서는 마지막 HOME 복귀 완료 status까지 확인하십시오.
