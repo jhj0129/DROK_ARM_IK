@@ -1,296 +1,160 @@
 # DROK_ARM_IK
 
-DROK ARM 실제 로봇용 **독립형 FK/IK + 고정 연습위치 Grasp Workspace**입니다.
+DROK ARM 실제 로봇용 독립형 FK/IK + 실제 RMD 제어 + TOP-DOWN grasp workspace입니다.
 
-## 핵심
+## 현재 기준 상태 (2026-08-12)
 
-이제 별도의 `IK_solver_MuJoCo` Workspace가 필요하지 않습니다.
+- 외부 `IK_solver_MuJoCo` workspace 불필요
+- MuJoCo viewer 없이 실제 grasp 실행
+- `ARM_BASE_LINK`: +X 전방, +Y 왼쪽, +Z 위
+- 연습모드 기본값: `USE_FIXED_PRACTICE_TARGET = True`
+- 현재 연습 목표: `(0.400, 0.000, -0.100) m`
+- 시작 HOME에서는 JOINT1을 현재 위치에 유지하고 JOINT2~6만 HOME으로 이동
+- IK 동작에서는 JOINT1을 정상 사용
+- grasp/lift 후 최종 HOME 복귀는 기존 `HOME_Q` 사용
+- gripper TCP: `gripper_center`에서 local +X `0.05 m` 보정
+- CAN interface state/bitrate 변경 없음
+- Motor ROM/limit write 없음
 
-기존에 사용하던 FK/IK 중 실제 grasp에 필요한 부분만:
+## Repository
 
 ```text
-src/drok_arm_kinematics/
+DROK_ARM_IK/
+├── README.md
+├── DROK_ARM_code.txt              # 사용자가 정리한 실행/파라미터 메모
+├── src/
+│   ├── drok_arm_kinematics/
+│   └── drok_real_arm_bridge/
+├── tools/
+│   ├── go_home.sh
+│   ├── run_real.sh
+│   ├── drok_auto_grasp_prototype1.py
+│   ├── interactive_box_ik_grasp_v11.py
+│   ├── drok_gripper_opening_calibration_jog.py
+│   └── ...
+└── integration/
+    └── chassis_supply_box/
+        ├── summer_node_ARM_integrated.cpp
+        ├── yolo_xyz_publisher_q.py
+        ├── DROK_ARM_SUMMER_INTEGRATION_GUIDE.txt
+        └── summer_node_ARM.diff
 ```
 
-안으로 통합했습니다.
+`integration/chassis_supply_box/`는 차체 Summer + supply_box 연동용 자료이며 ARM 단독 실행에는 필요하지 않습니다.
 
-현재 실제 고정위치 grasp에는:
-
-```text
-MuJoCo Viewer       필요 없음
-MuJoCo Simulation   필요 없음
-외부 IK Workspace   필요 없음
-```
-
-입니다.
-
----
-
-# 1. GitHub ZIP 압축 풀기
-
-```bash
-cd ~
-
-unzip ~/Downloads/DROK_ARM_IK-main.zip
-
-mv ~/DROK_ARM_IK-main ~/DROK_ARM_IK
-
-cd ~/DROK_ARM_IK
-```
-
----
-
-# 2. 처음 한 번 준비 / 빌드
-
-필요한 C++ library:
-
-```bash
-sudo apt update
-
-sudo apt install -y \
-  libeigen3-dev \
-  libyaml-cpp-dev
-```
-
-그다음:
+## 처음 한 번 빌드
 
 ```bash
 cd ~/DROK_ARM_IK
-
-chmod +x tools/*.sh
-chmod +x tools/*.py
-
+source /opt/ros/humble/setup.bash
+chmod +x tools/*.sh tools/*.py
 bash tools/first_setup.sh
 ```
 
-한 Workspace에서 다음 두 package가 같이 빌드됩니다.
+GitHub ZIP으로 받은 폴더명이 `DROK_ARM_IK-main`이면 위 경로의 `DROK_ARM_IK`를 `DROK_ARM_IK-main`으로 바꾸면 됩니다.
 
-```text
-drok_arm_kinematics
-drok_real_arm_bridge
-```
+## 기본 점검 / 실행
 
----
-
-# 3. 새 터미널 소싱
+### 1. 모터 통신
 
 ```bash
-source ~/DROK_ARM_IK/tools/source_env.sh
+bash ~/DROK_ARM_IK-main/tools/run_real.sh
 ```
 
-외부 `IK_solver_MuJoCo/install/setup.bash`는 더 이상 source하지 않습니다.
+### 2. HOME — JOINT1 HOLD
 
----
-
-# 4. 고정 연습위치 물체 잡기
-
-현재 목표:
-
-```text
-ARM_BASE_LINK
-X = +0.4000 m
-Y = +0.0000 m
-Z = -0.0325 m
-```
-
-## Terminal 1 - 실제 팔
+전원 ON 후 JOINT1을 사용자가 물리적 정면에 맞춘 뒤:
 
 ```bash
-source ~/DROK_ARM_IK/tools/source_env.sh
-
-bash ~/DROK_ARM_IK/tools/run_real.sh
+bash ~/DROK_ARM_IK-main/tools/go_home.sh
 ```
 
-## Terminal 2 - 자동 IK 노드
+### 3. 연습 grasp 노드
 
 ```bash
-source ~/DROK_ARM_IK/tools/source_env.sh
-
-bash ~/DROK_ARM_IK/tools/run_drok_auto_grasp_prototype1.sh
+source ~/DROK_ARM_IK-main/tools/source_env.sh
+bash ~/DROK_ARM_IK-main/tools/run_drok_auto_grasp_prototype1.sh
 ```
 
-## Terminal 3 - IK 모드 ON
+### 4. 연습 grasp 시작
 
 ```bash
-source ~/DROK_ARM_IK/tools/source_env.sh
-
-bash ~/DROK_ARM_IK/tools/trigger_fixed_ik_grasp.sh
+source ~/DROK_ARM_IK-main/tools/source_env.sh
+bash ~/DROK_ARM_IK-main/tools/trigger_fixed_ik_grasp.sh
 ```
 
-동작:
+### 5. 그리퍼 재보정
 
-```text
-EXACT HOME_Q
-→ GRIPPER FULL OPEN
-→ FK / IK
-→ PREALIGN
-→ APPROACH1
-→ APPROACH2
-→ GRASP
-→ LIFT
-→ HOME
+```bash
+source ~/DROK_ARM_IK-main/tools/source_env.sh
+python3 ~/DROK_ARM_IK-main/tools/drok_gripper_opening_calibration_jog.py
 ```
 
----
+## 주요 파라미터
 
-# 5. 물체 위치 수정
-
-파일:
-
-```text
-~/DROK_ARM_IK/tools/drok_auto_grasp_prototype1.py
-```
+### `tools/drok_auto_grasp_prototype1.py`
 
 ```python
-USE_FIXED_PRACTICE_TARGET = True
-
+USE_FIXED_PRACTICE_TARGET = True   # True=연습, False=YOLO+TF
 FIXED_GRASP_X_M = 0.4000
 FIXED_GRASP_Y_M = 0.0000
-FIXED_GRASP_Z_M = -0.0325
-```
+FIXED_GRASP_Z_M = -0.1000
 
-좌표:
-
-```text
-+X = 전방
-+Y = 왼쪽
-+Z = 위
-```
-
----
-
-# 6. 오프셋 수정
-
-같은 파일:
-
-```python
 ROBOT_OFFSET_FORWARD_CM = 0.0
 ROBOT_OFFSET_RIGHT_CM = 0.0
 ROBOT_OFFSET_UP_CM = 0.0
+
+START_HOME_SEC = 3.0*2
+RETURN_HOME_SEC = 3.0*2
 ```
+
+### `tools/interactive_box_ik_grasp_v11.py`
+
+```python
+NEAR_STANDOFF_M = 0.09
+LIFT_HEIGHT_M = 0.05
+REAL_CURRENT_TO_PREALIGN_SEC = 1.2
+REAL_APPROACH1_SEC = 6.0*2
+REAL_APPROACH2_SEC = 3.0*2
+REAL_GRASP_TO_LIFT_SEC = 3.0*2
+REAL_GRIPPER_CLOSE_SEC = 3.0*2
+```
+
+현재 업로드본에 저장된 gripper calibration:
 
 ```text
-FORWARD + → X 증가
-RIGHT   + → Y 감소
-UP      + → Z 증가
+OPEN  : gap=14.6 cm, protocol=+105.110 deg
+GRASP : gap=9.7 cm,  protocol=+1172.960 deg
 ```
 
----
+### TCP 파지점 보정
 
-# 7. 그리퍼 FULL OPEN
+`src/drok_arm_kinematics/config/drok_arm_kinematics_only.urdf`
 
-실제 bridge를 먼저 실행한 상태에서:
-
-```bash
-source ~/DROK_ARM_IK/tools/source_env.sh
-
-bash ~/DROK_ARM_IK/tools/gripper_open.sh
+```xml
+<origin xyz="0.05 0 0" rpy="0 0 0" />
 ```
 
-현재:
+`src/drok_arm_kinematics/config/robot_geometry.yaml`에도 동일한 `0.05 m`가 적용되어 있습니다.
+
+## CAMERA / YOLO 모드
+
+`tools/drok_auto_grasp_prototype1.py`:
+
+```python
+USE_FIXED_PRACTICE_TARGET = False
+```
+
+입력 토픽:
 
 ```text
-OPEN = 14.60 cm
-protocol = -1640.890 deg
+/yolo_detected_object   std_msgs/String
+/yolo_object_xyz        geometry_msgs/Vector3Stamped
 ```
 
----
+YOLO XYZ는 `camera_link` 기준이고 ARM 노드가 TF를 이용해 `ARM_BASE_LINK`로 변환합니다.
 
-# 8. 그리퍼 GRASP
-
-```bash
-source ~/DROK_ARM_IK/tools/source_env.sh
-
-bash ~/DROK_ARM_IK/tools/gripper_grasp.sh
-```
-
-현재:
-
-```text
-GRASP = 9.70 cm
-protocol = -545.910 deg
-```
-
----
-
-# 9. 그리퍼 재보정
-
-Terminal 1:
-
-```bash
-source ~/DROK_ARM_IK/tools/source_env.sh
-
-bash ~/DROK_ARM_IK/tools/run_real.sh
-```
-
-Terminal 2:
-
-```bash
-source ~/DROK_ARM_IK/tools/source_env.sh
-
-python3 \
-  ~/DROK_ARM_IK/tools/drok_gripper_opening_calibration_jog.py
-```
-
-완전 열림 저장:
-
-```text
-gripper> save open
-```
-
-잡기 저장:
-
-```text
-gripper> save grasp
-```
-
----
-
-# 10. 이제 IK가 저장소 내부에서 사용하는 파일
-
-Geometry:
-
-```text
-src/drok_arm_kinematics/config/robot_geometry.yaml
-```
-
-Joint limit URDF:
-
-```text
-src/drok_arm_kinematics/config/drok_arm_kinematics_only.urdf
-```
-
-Nearest IK helper:
-
-```text
-tools/baseline_nearest_ik_core.py
-```
-
-C++ IK:
-
-```text
-src/drok_arm_kinematics/src/solve_ik_pose.cpp
-```
-
-C++ FK:
-
-```text
-src/drok_arm_kinematics/src/test_fk.cpp
-```
-
-따라서 현재 실제 grasp 계산에 필요한 FK/IK가 모두 이 저장소에 포함됩니다.
-
----
-
-# 11. MuJoCo
-
-현재 고정 연습위치 실제 grasp에는 MuJoCo가 필요하지 않습니다.
-
-기존 MuJoCo simulation / MJCF / scene 파일은 이 저장소에 포함하지 않았습니다.
-
----
-
-# 12. GitHub에 올리지 않는 파일
+## GitHub에 올리지 않는 파일
 
 ```text
 build/
@@ -298,16 +162,16 @@ install/
 log/
 __pycache__/
 *.pyc
+*.pyo
+*.bak_*
 ```
 
----
+## 안전
 
-# 13. 안전
-
-자동으로 다음을 변경하지 않습니다.
+이 저장소의 실행/보정 흐름에서 자동으로 다음을 변경하지 않습니다.
 
 ```text
-CAN interface UP / DOWN
+CAN interface UP/DOWN
 CAN bitrate
 Motor ROM
 Motor limit
