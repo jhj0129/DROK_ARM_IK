@@ -30,7 +30,7 @@ IMPORTANT
 - Motor ROM/limits are not written.
 - In the default FIXED PRACTICE mode, /drok_arm_auto/enable=True is the IK-mode
   trigger. Incoming object coordinates are not used.
-- CAMERA mode can be enabled by setting USE_FIXED_PRACTICE_TARGET = False.
+- CAMERA mode can be restored by setting USE_FIXED_PRACTICE_TARGET = True.
 """
 
 from __future__ import annotations
@@ -70,9 +70,9 @@ USE_FIXED_PRACTICE_TARGET = True
 
 # Current practice target in ARM_BASE_LINK [m].
 #   +X = forward, +Y = left, +Z = up
-FIXED_GRASP_X_M = 0.4000
+FIXED_GRASP_X_M = 0.3500
 FIXED_GRASP_Y_M = 0.0000
-FIXED_GRASP_Z_M = -0.1000
+FIXED_GRASP_Z_M = 0.0000
 
 # Target class published by the supplied YOLO node (CAMERA mode only).
 TARGET_CLASS = "supply_box"
@@ -368,26 +368,15 @@ def move_real_arm_to_exact_home(
         ),
     )
 
-    # ARM: Mission-start HOME에서는 JOINT1을 움직이지 않는다.
-    # ARM: 사용자가 전원 ON 후 JOINT1을 물리적 정면(Yaw=0)에 맞춘 상태를 유지한다.
-    # ARM: JOINT2~JOINT6만 기존 HOME_Q로 이동한다.
-    start_home_q = core.HOME_Q.copy()
-    start_home_q[0] = float(real_node.current_q[0])
-
-    print(
-        "[ARM] START HOME: JOINT1 HOLD [deg] =",
-        f"{__import__('math').degrees(start_home_q[0]):+.4f}",
-    )
-
     executor = core.DirectArmRmdExecutor(
         real_node
     )
 
     try:
         ok = executor.move_poly5(
-            start_home_q,
+            core.HOME_Q,
             float(duration_sec),
-            "MISSION START -> HOME (JOINT1 HOLD)",
+            "MISSION START -> EXACT HOME_Q",
         )
     finally:
         executor.close()
@@ -839,6 +828,14 @@ def execute_plan_and_return_home(
             "AUTO APPROACH2: NEAR -> GRASP",
         ):
             return False
+
+        print()
+        print("=" * 76)
+        print("[TCP MEASURE TEST]")
+        print("GRASP position reached.")
+        print("STOP HERE: no CLOSE / no LIFT / no HOME return.")
+        print("=" * 76)
+        return True
 
         print(
             f"[GRIPPER] CLOSE "

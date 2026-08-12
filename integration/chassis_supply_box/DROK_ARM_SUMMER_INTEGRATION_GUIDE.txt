@@ -1,0 +1,423 @@
+DROK SUMMER + ARM INTEGRATION GUIDE
+2026-08-12
+
+============================================================
+0. 목적
+============================================================
+
+기존 Summer 차체 코드는 최대한 유지하고, 기존 is_waiting / 20초 정지 흐름만
+DROK_ARM_IK의 arm enable / done handshake로 변경한다.
+
+동작:
+
+  차체 주행
+    -> supply_box 검출
+    -> is_waiting=true
+    -> /cmd_vel = 0 유지
+    -> 0.5초 차체 정착
+    -> /drok_arm_auto/enable=True 1회 발행
+    -> 팔: camera XYZ -> TF -> IK -> grasp -> lift -> HOME
+    -> /drok_arm_auto/done=True
+    -> is_waiting=false
+    -> 기존 current_nav 주행 재개
+
+중요:
+- 팔이 움직이는 동안 Summer는 /cmd_vel=0을 유지한다.
+- 차체가 supply_box를 처음 발견하기 전에는 팔 enable을 보내지 않는다.
+- arm done=True가 오지 않으면 차체는 재출발하지 않는다. 이것은 안전 인터락이다.
+- 파지 완료 후 현재 Summer 실행 중에는 supply_box 재파지를 하지 않는다.
+- 기존 신호등 / IMU / 영상 UI / cmd_vel_nav 로직은 유지한다.
+- 수정/추가한 C++ 부분에는 모두 // ARM: 주석을 붙였다.
+
+============================================================
+1. 파일
+============================================================
+
+수정 파일:
+  summer_node.cpp
+
+원본에서 변경된 파일은 summer_node.cpp 하나뿐이다.
+CMakeLists.txt / package.xml / spring / autumn / winter는 수정하지 않았다.
+
+새로 사용하는 ROS 토픽:
+
+  /yolo_detected_object       std_msgs/msg/String
+      q.py -> Summer
+      supply_box 검출 트리거
+
+  /drok_arm_auto/enable       std_msgs/msg/Bool
+      Summer -> ARM
+      True = arm mission 시작
+
+  /drok_arm_auto/done         std_msgs/msg/Bool
+      ARM -> Summer
+      True = grasp/lift/HOME 완료
+
+기존 팔 입력:
+  /yolo_object_xyz            geometry_msgs/msg/Vector3Stamped
+      q.py -> ARM
+      frame_id = camera_link
+
+============================================================
+2. 권장 NUC 구조
+============================================================
+
+/home/kudos/
+├── drokck_free/
+│   ├── src/
+│   │   ├── drokck/
+│   │   │   ├── CMakeLists.txt
+│   │   │   ├── package.xml
+│   │   │   ├── spring_node.cpp
+│   │   │   ├── summer_node.cpp        <- 이 파일로 교체
+│   │   │   ├── autumn_node.cpp
+│   │   │   └── winter_node.cpp
+│   │   └── yolo_xyz_publisher/
+│   │       └── yolo_xyz_publisher/
+│   │           ├── q.py
+│   │           └── best.pt
+│   ├── build/
+│   ├── install/
+│   └── log/
+│
+└── DROK_ARM_IK-main/
+    ├── src/
+    ├── tools/
+    │   ├── run_real.sh
+    │   ├── run_drok_auto_grasp_prototype1.sh
+    │   ├── drok_auto_grasp_prototype1.py
+    │   └── interactive_box_ik_grasp_v11.py
+    ├── build/
+    ├── install/
+    └── log/
+
+실제 drokck package 폴더 이름이 다르면 아래 find 명령으로 확인한다.
+
+============================================================
+3. NUC에 summer_node.cpp 교체
+============================================================
+
+다운로드한 summer_node.cpp가 ~/Downloads에 있다고 가정.
+
+먼저 실제 원본 위치 확인:
+
+  find ~/drokck_free/src -name summer_node.cpp -print
+
+예상 위치가 ~/drokck_free/src/drokck/summer_node.cpp 라면 원본 backup:
+
+  cp ~/drokck_free/src/drokck/summer_node.cpp \
+     ~/drokck_free/src/drokck/summer_node.cpp.before_ARM
+
+교체:
+
+  cp ~/Downloads/summer_node.cpp \
+     ~/drokck_free/src/drokck/summer_node.cpp
+
+ARM 수정 부분 확인:
+
+  grep -n "ARM:" ~/drokck_free/src/drokck/summer_node.cpp
+
+============================================================
+4. 차체 package 재빌드
+============================================================
+
+Terminal A:
+
+  cd ~/drokck_free
+  source /opt/ros/humble/setup.bash
+
+  colcon build \
+    --symlink-install \
+    --packages-select drokck
+
+  source ~/drokck_free/install/setup.bash
+
+실행파일 확인:
+
+  ros2 pkg executables drokck | grep summer
+
+정상 예상:
+
+  drokck summer_node
+
+============================================================
+5. ARM을 CAMERA MODE로 설정
+============================================================
+
+현재 실제 통합에서는 fixed target이 아니라 q.py의 카메라 좌표를 써야 한다.
+
+확인:
+
+  grep -n "USE_FIXED_PRACTICE_TARGET" \
+    ~/DROK_ARM_IK-main/tools/drok_auto_grasp_prototype1.py
+
+반드시 다음이어야 함:
+
+  USE_FIXED_PRACTICE_TARGET = False
+
+True라면 다음 명령으로 False로 변경:
+
+  python3 - <<'PY'
+  from pathlib import Path
+  p = Path.home() / "DROK_ARM_IK-main/tools/drok_auto_grasp_prototype1.py"
+  s = p.read_text()
+  old = "USE_FIXED_PRACTICE_TARGET = True"
+  new = "USE_FIXED_PRACTICE_TARGET = False"
+  if old not in s:
+      print("이미 CAMERA MODE이거나 문자열을 확인해야 합니다.")
+  else:
+      p.write_text(s.replace(old, new, 1))
+      print("CAMERA MODE SET: USE_FIXED_PRACTICE_TARGET = False")
+  PY
+
+다시 확인:
+
+  grep -n "USE_FIXED_PRACTICE_TARGET" \
+    ~/DROK_ARM_IK-main/tools/drok_auto_grasp_prototype1.py
+
+============================================================
+6. 카메라 TF
+============================================================
+
+현재 임시 측정 위치:
+
+  ARM_BASE_LINK 기준
+  x = -0.400 m   (뒤)
+  y = +0.065 m   (왼쪽)
+  z = +0.470 m   (위)
+
+카메라 회전값은 아직 실제값으로 확정되지 않았다.
+실제 grasp 전에는 반드시 정확한 roll/pitch/yaw로 교체해야 한다.
+
+임시 위치/회전 0 테스트:
+
+  source /opt/ros/humble/setup.bash
+
+  ros2 run tf2_ros static_transform_publisher \
+    --x -0.400 \
+    --y 0.065 \
+    --z 0.470 \
+    --roll 0.0 \
+    --pitch 0.0 \
+    --yaw 0.0 \
+    --frame-id ARM_BASE_LINK \
+    --child-frame-id camera_link
+
+확인:
+
+  ros2 run tf2_ros tf2_echo ARM_BASE_LINK camera_link
+
+주의:
+  회전값 0은 연결 확인용이다.
+  실제 카메라가 ARM_BASE_LINK와 같은 축 방향이 아니면 실제 grasp에는 사용하지 않는다.
+
+============================================================
+7. 전체 구동 순서
+============================================================
+
+아래는 각각 별도 터미널.
+
+------------------------------
+Terminal 1 - 실제 팔 Bridge
+------------------------------
+
+  source ~/DROK_ARM_IK-main/tools/source_env.sh
+  bash ~/DROK_ARM_IK-main/tools/run_real.sh
+
+계속 켜둔다.
+CAN interface 상태/bitrate 변경 명령은 실행하지 않는다.
+
+------------------------------
+Terminal 2 - ARM AUTO node
+------------------------------
+
+  source ~/DROK_ARM_IK-main/tools/source_env.sh
+  bash ~/DROK_ARM_IK-main/tools/run_drok_auto_grasp_prototype1.sh
+
+정상 조건:
+  START_ENABLED=False
+  CAMERA MODE
+  /drok_arm_auto/enable=True를 기다리는 상태
+
+------------------------------
+Terminal 3 - camera -> ARM_BASE_LINK static TF
+------------------------------
+
+실제 카메라 회전값이 확정된 후 정확한 RPY를 사용한다.
+현재 위치만 테스트할 경우:
+
+  source /opt/ros/humble/setup.bash
+  ros2 run tf2_ros static_transform_publisher \
+    --x -0.400 --y 0.065 --z 0.470 \
+    --roll 0.0 --pitch 0.0 --yaw 0.0 \
+    --frame-id ARM_BASE_LINK \
+    --child-frame-id camera_link
+
+------------------------------
+Terminal 4 - RealSense / 기존 카메라 driver
+------------------------------
+
+현재 차체에서 사용하던 카메라 driver를 그대로 실행한다.
+q.py가 필요로 하는 토픽:
+
+  /camera/camera/color/image_raw
+  /camera/camera/aligned_depth_to_color/image_raw
+  /camera/camera/color/camera_info
+
+토픽 확인:
+
+  ros2 topic list | grep '^/camera/'
+
+------------------------------
+Terminal 5 - q.py YOLO XYZ
+------------------------------
+
+  source /opt/ros/humble/setup.bash
+  source ~/drokck_free/install/setup.bash
+
+  python3 \
+    ~/drokck_free/src/yolo_xyz_publisher/yolo_xyz_publisher/q.py
+
+q.py 출력 토픽 확인:
+
+  ros2 topic info /yolo_detected_object
+  ros2 topic info /yolo_object_xyz
+
+------------------------------
+Terminal 6 - Summer 차체 node
+------------------------------
+
+  source /opt/ros/humble/setup.bash
+  source ~/drokck_free/install/setup.bash
+
+  ros2 run drokck summer_node
+
+그리고 기존 /cmd_vel_nav를 만드는 차체/nav 노드들은 이전 실행방법 그대로 켠다.
+
+============================================================
+8. 실제 동작 시퀀스
+============================================================
+
+1) Summer 정상 주행
+     current_nav -> /cmd_vel
+
+2) q.py가 supply_box 발행
+     /yolo_detected_object = supply_box
+
+3) Summer
+     is_waiting=true
+     /cmd_vel=0
+
+4) 0.5초 후 Summer
+     /drok_arm_auto/enable=True 1회
+
+5) ARM node
+     /yolo_detected_object supply_box 확인
+     /yolo_object_xyz 샘플 수집
+     camera_link -> ARM_BASE_LINK TF
+     IK
+     exact HOME
+     full OPEN
+     approach
+     grasp
+     lift
+     HOME holding object
+
+6) ARM node
+     /drok_arm_auto/done=True
+
+7) Summer
+     is_waiting=false
+     기존 current_nav 전달 재개
+
+============================================================
+9. 구동 전 필수 확인 명령
+============================================================
+
+ARM enable 연결:
+
+  ros2 topic info -v /drok_arm_auto/enable
+
+정상적으로는:
+  Publisher : Summer_Node
+  Subscriber: drok_auto_grasp_prototype1
+
+ARM done 연결:
+
+  ros2 topic info -v /drok_arm_auto/done
+
+정상적으로는:
+  Publisher : drok_auto_grasp_prototype1
+  Subscriber: Summer_Node
+
+YOLO class 연결:
+
+  ros2 topic info -v /yolo_detected_object
+
+YOLO XYZ 연결:
+
+  ros2 topic echo /yolo_object_xyz --once
+
+정상 형식:
+
+  header:
+    frame_id: camera_link
+  vector:
+    x: ...
+    y: ...
+    z: ...
+
+TF 확인:
+
+  ros2 run tf2_ros tf2_echo ARM_BASE_LINK camera_link
+
+차체 최종 출력:
+
+  ros2 topic echo /cmd_vel
+
+팔 상태:
+
+  ros2 topic echo /drok_arm_auto/status
+
+완료 신호:
+
+  ros2 topic echo /drok_arm_auto/done
+
+============================================================
+10. 팔 없이 Summer handshake 먼저 확인하는 방법
+============================================================
+
+실제 팔 node를 켜지 않고 Summer와 q.py만 켠 상태에서:
+
+  ros2 topic echo /drok_arm_auto/enable
+
+supply_box를 보여주면 약 0.5초 후:
+
+  data: true
+
+가 한 번 나와야 한다.
+
+이때 arm done이 없으므로 Summer는 계속 /cmd_vel=0을 유지하는 것이 정상이다.
+테스트 후 Summer node를 재시작하면 초기 상태로 돌아간다.
+
+============================================================
+11. 안전 동작
+============================================================
+
+- arm done=True 이전에는 차체를 재출발시키지 않는다.
+- ARM 실행 실패 시 done=True가 오지 않으므로 차체는 정지 상태를 유지한다.
+- 현재 버전은 grasp가 완료되면 물체를 잡고 있다고 간주한다.
+- arm_mission_completed=true 이후 같은 Summer 실행 중 supply_box를 다시 잡지 않는다.
+- 카메라 회전 TF가 확정되기 전 실제 물체 grasp는 하지 않는다.
+- CAN interface up/down, bitrate, motor ROM/limit을 이 통합 코드에서 변경하지 않는다.
+
+============================================================
+12. 원본 대비 변경점 확인
+============================================================
+
+다운로드 ZIP 안의 summer_node_ARM.diff 참고.
+
+코드 내 ARM 변경점만 보기:
+
+  grep -n "ARM:" summer_node.cpp
+

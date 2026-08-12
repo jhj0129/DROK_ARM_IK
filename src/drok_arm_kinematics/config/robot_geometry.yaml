@@ -113,6 +113,6 @@ kinematic_chain:
     parent: gripper_center
     child: gripper_tcp
     origin:
-      xyz: [0, 0, 0]
+      xyz: [0.05, 0, 0]
       rpy: [0, 0, 0]
     axis: [0, 0, 0]

@@ -1,0 +1,148 @@
+--- /mnt/data/drokck_0812_extract/drokck_free-main_0812/summer_node.cpp	2026-08-10 06:41:54.000000000 +0000
++++ /mnt/data/DROK_ARM_chassis_integration_0812/summer_node.cpp	2026-08-12 09:49:16.917516914 +0000
+@@ -1,6 +1,8 @@
+ #include <rclcpp/rclcpp.hpp>
+ #include <geometry_msgs/msg/twist.hpp>
+ #include <std_msgs/msg/string.hpp>
++// ARM: 차체 -> 팔 enable, 팔 -> 차체 done 신호용 Bool 메시지 추가
++#include <std_msgs/msg/bool.hpp>
+ #include <sensor_msgs/msg/image.hpp>
+ #include <sensor_msgs/msg/imu.hpp> // IMU 메시지 추가
+ #include <cv_bridge/cv_bridge.h>
+@@ -36,9 +38,9 @@
+                 status_pub_->publish(status_msg);
+             }
+             
++            // ARM: 기존 supply_box -> 20초 is_waiting 시작 부분을 팔 미션 시작 인터락으로 연결
+             if (data.find("supply_box") != std::string::npos && !is_waiting) {
+-                is_waiting = true;
+-                wait_start_time = this->now();
++                start_arm_sequence_if_needed();
+             }
+         });
+ 
+@@ -50,9 +52,56 @@
+         cmd_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+         ui_image_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/ui_combined_vision", 10);
+         status_pub_ = this->create_publisher<std_msgs::msg::String>("/light_status", 10);
++
++        // ARM: q.py가 발행하는 supply_box 문자열을 직접 받아 차체 정지/팔 시작에 사용
++        // ARM: 기존 /yolo_bbox_raw 구독은 신호등 및 기존 기능 유지를 위해 그대로 둠
++        arm_yolo_sub_ = this->create_subscription<std_msgs::msg::String>(
++            "/yolo_detected_object", 10,
++            [this](const std_msgs::msg::String::SharedPtr msg) {
++                if (msg->data.find("supply_box") != std::string::npos) {
++                    start_arm_sequence_if_needed();
++                }
++            });
++
++        // ARM: Summer -> DROK_ARM_IK. True를 한 번 발행하면 팔이 카메라 XYZ/TF 기반 grasp 시작
++        arm_enable_pub_ = this->create_publisher<std_msgs::msg::Bool>(
++            "/drok_arm_auto/enable", 10);
++
++        // ARM: DROK_ARM_IK가 grasp -> lift -> HOME을 완료하면 DONE=True를 발행
++        arm_done_sub_ = this->create_subscription<std_msgs::msg::Bool>(
++            "/drok_arm_auto/done", 10,
++            [this](const std_msgs::msg::Bool::SharedPtr msg) {
++                if (msg->data && is_waiting && arm_started) {
++                    // ARM: 팔이 HOME까지 복귀한 뒤에만 차체 주행을 다시 허용
++                    is_waiting = false;
++                    arm_started = false;
++                    arm_mission_completed = true;
++
++                    RCLCPP_INFO(
++                        this->get_logger(),
++                        "[ARM] GRASP DONE + HOME confirmed. Chassis driving resumed.");
++                }
++            });
+     }
+ 
+ private:
++    // ARM: supply_box가 여러 프레임 연속 검출되어도 한 번만 팔 미션을 시작
++    // ARM: 현재 대회 흐름에서는 supply_box 파지 성공 후 물체를 계속 잡고 있다고 가정하므로
++    // ARM: arm_mission_completed=true 이후에는 같은 Summer 실행 중 재파지를 하지 않음
++    void start_arm_sequence_if_needed() {
++        if (is_waiting || arm_started || arm_mission_completed) {
++            return;
++        }
++
++        is_waiting = true;
++        arm_started = false;
++        wait_start_time = this->now();
++
++        RCLCPP_INFO(
++            this->get_logger(),
++            "[ARM] supply_box detected. Chassis STOP interlock active.");
++    }
++
+     void process_front(const sensor_msgs::msg::Image::SharedPtr mf) {
+         try {
+             cv::Mat img_f = cv_bridge::toCvCopy(mf, "bgr8")->image;
+@@ -66,19 +115,31 @@
+                 out_msg.linear.x = 0.0; 
+                 out_msg.angular.z = 0.0;
+             } 
++            // ARM: 기존 20초 대기 대신 팔 DONE=True가 올 때까지 차체를 계속 정지
+             else if (is_waiting) {
+-                double elapsed = (this->now() - wait_start_time).seconds();
+-                if (elapsed < 20.0) { 
+-                    out_msg.linear.x = 0.0; 
+-                    out_msg.angular.z = 0.0; 
+-                } else { 
+-                    is_waiting = false; 
+-                    out_msg = current_nav; 
+-                }
++                out_msg.linear.x = 0.0;
++                out_msg.angular.z = 0.0;
+             } 
+             else {
+                 out_msg = current_nav;
+             }
++
++            // ARM: supply_box 감지 직후 차체에 STOP 명령을 먼저 준 뒤 0.5초 정착시간을 확보
++            // ARM: enable=True는 한 번만 발행하며 이후 DONE=True가 올 때까지 /cmd_vel=0 유지
++            if (is_waiting && !arm_started) {
++                double elapsed = (this->now() - wait_start_time).seconds();
++
++                if (elapsed >= ARM_CHASSIS_SETTLE_SEC) {
++                    auto arm_enable_msg = std_msgs::msg::Bool();
++                    arm_enable_msg.data = true;
++                    arm_enable_pub_->publish(arm_enable_msg);
++                    arm_started = true;
++
++                    RCLCPP_INFO(
++                        this->get_logger(),
++                        "[ARM] Chassis settled. /drok_arm_auto/enable=True published.");
++                }
++            }
+             
+             // 2. IMU linear x가 0.1보다 작으면 토크(속도) 2배 증가 (정지 상태가 아닐 때만 적용)
+             if (out_msg.linear.x != 0.0 && std::abs(current_imu_linear_x) < 0.1) {
+@@ -105,6 +166,13 @@
+     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_; // IMU 구독자 추가
+     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr yolo_sub_;
+     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr nav_sub_;
++
++    // ARM: q.py supply_box 감지 토픽 구독
++    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr arm_yolo_sub_;
++    // ARM: 팔 시작 명령 publisher
++    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr arm_enable_pub_;
++    // ARM: 팔 grasp/HOME 완료 subscriber
++    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr arm_done_sub_;
+     
+     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub_;
+     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr ui_image_pub_;
+@@ -115,6 +183,13 @@
+     bool is_red_light = false;
+     bool is_waiting = false;
+     rclcpp::Time wait_start_time;
++
++    // ARM: 차체가 실제로 정지할 시간을 확보한 뒤에만 팔을 움직임
++    static constexpr double ARM_CHASSIS_SETTLE_SEC = 0.5;
++    // ARM: enable=True 중복 발행 방지
++    bool arm_started = false;
++    // ARM: 이번 Summer 실행에서 보급상자 파지 완료 후 재트리거 방지
++    bool arm_mission_completed = false;
+ };
+ 
+ int main(int argc, char **argv) { 

@@ -150,6 +150,6 @@
   <joint name="GRIPPER_TCP_FIXED_JOINT" type="fixed">
     <parent link="gripper_center" />
     <child link="gripper_tcp" />
-    <origin xyz="0 0 0" rpy="0 0 0" />
+    <origin xyz="0.05 0 0" rpy="0 0 0" />
   </joint>
 </robot>
